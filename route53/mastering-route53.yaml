@@ -1,0 +1,106 @@
+Parameters:
+  HostedZoneId:
+    Type: String
+  RootDomainName:
+    Type: String
+Resources:
+  WebServerInstance:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      ImageId: ami-058b1b7fe545997ae
+      InstanceType: t2.small
+      KeyName: 'aws'
+      SecurityGroups:
+        - !Ref WebServerSecurityGroup
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          yum install -y httpd 
+          sed -i "s/\#ServerName\ www.example.com\:80/ServerName\ ${RootDomainName}/g" /etc/httpd/conf/httpd.conf
+          systemctl start httpd
+          echo "EC2 Web Instance with Public IP: " > /usr/share/httpd/noindex/index.html
+          curl http://169.254.169.254/latest/meta-data/public-ipv4 >> /usr/share/httpd/noindex/index.html
+  WebServerSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Enable HTTP access via port 80
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: 0.0.0.0/0
+  RootBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref RootDomainName
+      AccessControl: PublicRead
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: 404.html
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      PolicyDocument:
+        Id: MyPolicy
+        Version: 2012-10-17
+        Statement:
+          - Sid: PublicReadForGetBucketObjects
+            Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Join
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref RootBucket
+                - /*
+      Bucket: !Ref RootBucket
+  WWWBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub
+          - www.${Domain}
+          - Domain: !Ref RootDomainName
+      AccessControl: BucketOwnerFullControl
+      WebsiteConfiguration:
+        RedirectAllRequestsTo:
+          HostName: !Ref RootBucket
+  WebInstanceRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      HealthCheckId: !GetAtt SimpleHealthCheck.HealthCheckId
+      Name: !Ref RootDomainName
+      Type: A
+      SetIdentifier: 1
+      Failover: PRIMARY 
+      TTL: 20 
+      ResourceRecords: 
+        - !GetAtt WebServerInstance.PublicIp
+  SimpleHealthCheck:
+    Type: 'AWS::Route53::HealthCheck'
+    Properties:
+      HealthCheckConfig:
+        IPAddress: !GetAtt WebServerInstance.PublicIp
+        Port: 80
+        Type: HTTP
+        ResourcePath: '/'
+        FullyQualifiedDomainName: !Ref RootDomainName
+        RequestInterval: 30
+        FailureThreshold: 2
+Outputs:
+  EC2WebsiteURL:
+    Value: !Join 
+      - ''
+      - - 'http://'
+        - !GetAtt 
+          - WebServerInstance
+          - PublicDnsName
+  S3WebsiteURL:
+    Value: !GetAtt RootBucket.WebsiteURL
+
+
+
