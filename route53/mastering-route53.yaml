@@ -3,6 +3,11 @@ Parameters:
     Type: String
   RootDomainName:
     Type: String
+Mappings:
+  RegionMap:
+    eu-west-1:
+      S3hostedzoneID: Z1BKCTXD74EZPE
+      websiteendpoint: s3-website-eu-west-1.amazonaws.com
 Resources:
   WebServerInstance:
     Type: 'AWS::EC2::Instance'
@@ -15,11 +20,10 @@ Resources:
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash -xe
-          yum install -y httpd 
-          sed -i "s/\#ServerName\ www.example.com\:80/ServerName\ ${RootDomainName}/g" /etc/httpd/conf/httpd.conf
-          systemctl start httpd
-          echo "EC2 Web Instance with Public IP: " > /usr/share/httpd/noindex/index.html
-          curl http://169.254.169.254/latest/meta-data/public-ipv4 >> /usr/share/httpd/noindex/index.html
+          amazon-linux-extras install nginx1
+          echo "EC2 Web Instance with Public IP: " > /usr/share/nginx/html/index.html
+          curl http://169.254.169.254/latest/meta-data/public-ipv4 >> /usr/share/nginx/html/index.html
+          systemctl start nginx
   WebServerSecurityGroup:
     Type: 'AWS::EC2::SecurityGroup'
     Properties:
@@ -33,7 +37,7 @@ Resources:
           FromPort: '22'
           ToPort: '22'
           CidrIp: 0.0.0.0/0
-  RootBucket:
+  BackupWebsiteBucket:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Ref RootDomainName
@@ -41,6 +45,16 @@ Resources:
       WebsiteConfiguration:
         IndexDocument: index.html
         ErrorDocument: 404.html
+  WWWBackupWebsiteBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub
+          - www.${Domain}
+          - Domain: !Ref RootDomainName
+      AccessControl: BucketOwnerFullControl
+      WebsiteConfiguration:
+        RedirectAllRequestsTo:
+          HostName: !Ref BackupWebsiteBucket
   BucketPolicy:
     Type: AWS::S3::BucketPolicy
     Properties:
@@ -55,31 +69,39 @@ Resources:
             Resource: !Join
               - ''
               - - 'arn:aws:s3:::'
-                - !Ref RootBucket
+                - !Ref BackupWebsiteBucket
                 - /*
-      Bucket: !Ref RootBucket
-  WWWBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Sub
-          - www.${Domain}
-          - Domain: !Ref RootDomainName
-      AccessControl: BucketOwnerFullControl
-      WebsiteConfiguration:
-        RedirectAllRequestsTo:
-          HostName: !Ref RootBucket
-  WebInstanceRecord:
-    Type: AWS::Route53::RecordSet
+      Bucket: !Ref BackupWebsiteBucket
+  WebsiteDNSRecords:
+    Type: 'AWS::Route53::RecordSetGroup'
     Properties:
       HostedZoneId: !Ref HostedZoneId
-      HealthCheckId: !GetAtt SimpleHealthCheck.HealthCheckId
-      Name: !Ref RootDomainName
-      Type: A
-      SetIdentifier: 1
-      Failover: PRIMARY 
-      TTL: 20 
-      ResourceRecords: 
-        - !GetAtt WebServerInstance.PublicIp
+      RecordSets:
+      -
+        Name: !Ref RootDomainName
+        Type: A
+        SetIdentifier: 2
+        HealthCheckId: !GetAtt SimpleHealthCheck.HealthCheckId
+        Failover: PRIMARY 
+        TTL: 20 
+        ResourceRecords: 
+          - !GetAtt WebServerInstance.PublicIp
+      -
+        Name: !Ref RootDomainName
+        Failover: SECONDARY
+        SetIdentifier: 1
+        Type: A
+        AliasTarget:
+          HostedZoneId: !FindInMap [ RegionMap, !Ref 'AWS::Region', S3hostedzoneID]
+          DNSName: !FindInMap [ RegionMap, !Ref 'AWS::Region', websiteendpoint]
+      -
+        Name: !Sub
+            - www.${Domain}
+            - Domain: !Ref RootDomainName
+        Type: CNAME
+        TTL: 20
+        ResourceRecords:
+        - !GetAtt WWWBackupWebsiteBucket.DomainName
   SimpleHealthCheck:
     Type: 'AWS::Route53::HealthCheck'
     Properties:
@@ -87,7 +109,7 @@ Resources:
         IPAddress: !GetAtt WebServerInstance.PublicIp
         Port: 80
         Type: HTTP
-        ResourcePath: '/'
+        ResourcePath: '/index.html'
         FullyQualifiedDomainName: !Ref RootDomainName
         RequestInterval: 30
         FailureThreshold: 2
@@ -100,7 +122,9 @@ Outputs:
           - WebServerInstance
           - PublicDnsName
   S3WebsiteURL:
-    Value: !GetAtt RootBucket.WebsiteURL
+    Value: !GetAtt BackupWebsiteBucket.WebsiteURL
+  BucketName:
+    Value: !Ref BackupWebsiteBucket
 
 
 
