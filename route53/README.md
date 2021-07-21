@@ -11,6 +11,8 @@
 As you can see in the diagram above, there are two DNS A records for the same address and pointing to different resources, S3 and EC2. The record pointing to the EC2 is a primary one, and S3 is secondary. When EC2 fails for unknown reason, route53 will notice that with use of health checks set up earlier, and change value for the A record to point to S3 instead of EC2 as a backup option.
 You can see this in action on this gif:
 
+<img src="docs/dns-failover.gif" width="500" />
+
 
 
 
@@ -66,9 +68,3 @@ aws s3 cp index.html s3://$bucket_name/index.html
 ## ToDo
 
 - [] Add Elastic IP to EC2 instance.
-
-
-
-
-
-
