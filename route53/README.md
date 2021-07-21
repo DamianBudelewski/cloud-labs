@@ -7,13 +7,13 @@
 - aws-cli 2.2.21 - [docs](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html)
 - sops 3.7.1 - [git repo](https://github.com/mozilla/sops)
 
-## Architecture overview
 
-<img src="docs/architecture.png" width="600"/>
 
 ---
 
 ## Route 53
+
+Amazon Route 53 is a highly available and scalable cloud Domain Name System (DNS) web service. It is designed to give developers and businesses an extremely reliable and cost effective way to route end users to Internet applications by translating names like www.example.com into the numeric IP addresses like 192.0.2.1 that computers use to connect to each other. Amazon Route 53 is fully compliant with IPv6 as well.
 
 Key Route53 features that I research in this repo:
   
@@ -21,10 +21,35 @@ Key Route53 features that I research in this repo:
 
 **Health Checks and Monitoring** - Amazon Route 53 can monitor the health and performance of your application as well as your web servers and other resources.
 
-**Combining those two features -** As you can see in the diagram above, there are two DNS A records for the same address and pointing to different resources, S3 and EC2. The record pointing to the EC2 is a primary one, and S3 is secondary. When EC2 fails for unknown reason, route53 will notice that with use of health checks set up earlier, and change value for the A record to point to S3 instead of EC2 as a backup option.  
-**Example:** You can see this in action on this gif:
+### Architecture overview
+<img src="docs/architecture.png" width="450"/>
+
+On the diagram above, there are two DNS A records for the same address and pointing to different resources, S3 and EC2. The record pointing to the EC2 is a primary one, and S3 is secondary. In code it looks like this:
+```yaml
+### SIMPLIFIED VERSION - DO NOT RUN
+  WebsiteDNSRecords:
+    Type: 'AWS::Route53::RecordSetGroup'
+    Properties:
+      RecordSets:
+      -
+        Name: !Ref RootDomainName # The same domain name ...
+        Failover: PRIMARY 
+        ResourceRecords: 
+          - !GetAtt WebServerInstance.PublicIp # ... points to a EC2 instance publice IP as primary record ...
+      -
+        Name: !Ref RootDomainName # ... and at the same time ...
+        Failover: SECONDARY
+        ResourceRecords:
+        - !GetAtt WWWBackupWebsiteBucket.DomainName # ... points to a S3 bucket domain name as secondary record
+
+```
+
+When EC2 fails for unknown reason, route53 will notice that with use of health checks set up earlier, and change value for the A record to point to S3 instead of EC2 as a backup option.  
+
+You can see this in action on this gif:
 
 <img src="docs/dns-failover.gif" width="500"/>
+
 
 ---
 
