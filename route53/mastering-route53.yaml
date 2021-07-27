@@ -1,0 +1,130 @@
+Parameters:
+  HostedZoneId:
+    Type: String
+  RootDomainName:
+    Type: String
+Mappings:
+  RegionMap:
+    eu-west-1:
+      S3hostedzoneID: Z1BKCTXD74EZPE
+      websiteendpoint: s3-website-eu-west-1.amazonaws.com
+Resources:
+  WebServerInstance:
+    Type: 'AWS::EC2::Instance'
+    Properties:
+      ImageId: ami-058b1b7fe545997ae
+      InstanceType: t2.small
+      KeyName: 'aws'
+      SecurityGroups:
+        - !Ref WebServerSecurityGroup
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          amazon-linux-extras install nginx1
+          echo "EC2 Web Instance with Public IP: " > /usr/share/nginx/html/index.html
+          curl http://169.254.169.254/latest/meta-data/public-ipv4 >> /usr/share/nginx/html/index.html
+          systemctl start nginx
+  WebServerSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Enable HTTP access via port 80
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: 0.0.0.0/0
+  BackupWebsiteBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref RootDomainName
+      AccessControl: PublicRead
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: 404.html
+  WWWBackupWebsiteBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub
+          - www.${Domain}
+          - Domain: !Ref RootDomainName
+      AccessControl: BucketOwnerFullControl
+      WebsiteConfiguration:
+        RedirectAllRequestsTo:
+          HostName: !Ref BackupWebsiteBucket
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      PolicyDocument:
+        Id: MyPolicy
+        Version: 2012-10-17
+        Statement:
+          - Sid: PublicReadForGetBucketObjects
+            Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Join
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref BackupWebsiteBucket
+                - /*
+      Bucket: !Ref BackupWebsiteBucket
+  WebsiteDNSRecords:
+    Type: 'AWS::Route53::RecordSetGroup'
+    Properties:
+      HostedZoneId: !Ref HostedZoneId
+      RecordSets:
+      -
+        Name: !Ref RootDomainName
+        Type: A
+        SetIdentifier: 2
+        HealthCheckId: !GetAtt SimpleHealthCheck.HealthCheckId
+        Failover: PRIMARY 
+        TTL: 20 
+        ResourceRecords: 
+          - !GetAtt WebServerInstance.PublicIp
+      -
+        Name: !Ref RootDomainName
+        Failover: SECONDARY
+        SetIdentifier: 1
+        Type: A
+        AliasTarget:
+          HostedZoneId: !FindInMap [ RegionMap, !Ref 'AWS::Region', S3hostedzoneID]
+          DNSName: !FindInMap [ RegionMap, !Ref 'AWS::Region', websiteendpoint]
+      -
+        Name: !Sub
+            - www.${Domain}
+            - Domain: !Ref RootDomainName
+        Type: CNAME
+        TTL: 20
+        ResourceRecords:
+        - !GetAtt WWWBackupWebsiteBucket.DomainName
+  SimpleHealthCheck:
+    Type: 'AWS::Route53::HealthCheck'
+    Properties:
+      HealthCheckConfig:
+        IPAddress: !GetAtt WebServerInstance.PublicIp
+        Port: 80
+        Type: HTTP
+        ResourcePath: '/index.html'
+        FullyQualifiedDomainName: !Ref RootDomainName
+        RequestInterval: 30
+        FailureThreshold: 2
+Outputs:
+  EC2WebsiteURL:
+    Value: !Join 
+      - ''
+      - - 'http://'
+        - !GetAtt 
+          - WebServerInstance
+          - PublicDnsName
+  S3WebsiteURL:
+    Value: !GetAtt BackupWebsiteBucket.WebsiteURL
+  BucketName:
+    Value: !Ref BackupWebsiteBucket
+
+
+
