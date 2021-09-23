@@ -16,8 +16,8 @@
 Amazon Route 53 is a highly available and scalable cloud Domain Name System (DNS) web service. It is designed to give developers and businesses an extremely reliable and cost effective way to route end users to Internet applications by translating names like www.example.com into the numeric IP addresses like 192.0.2.1 that computers use to connect to each other. Amazon Route 53 is fully compliant with IPv6 as well.
 
 Key Route53 features that I research in this repo:
-  
-**DNS Failover** - Automatically route your website visitors to an alternate location to avoid site outages.  
+
+**DNS Failover** - Automatically route your website visitors to an alternate location to avoid site outages.
 
 **Health Checks and Monitoring** - Amazon Route 53 can monitor the health and performance of your application as well as your web servers and other resources.
 
@@ -33,8 +33,8 @@ On the diagram above, there are two DNS A records for the same address and point
       RecordSets:
       -
         Name: !Ref RootDomainName # The same domain name ...
-        Failover: PRIMARY 
-        ResourceRecords: 
+        Failover: PRIMARY
+        ResourceRecords:
           - !GetAtt WebServerInstance.PublicIp # ... points to a EC2 instance publice IP as primary record ...
       -
         Name: !Ref RootDomainName # ... and at the same time ...
@@ -44,7 +44,7 @@ On the diagram above, there are two DNS A records for the same address and point
 
 ```
 
-When EC2 fails for unknown reason, route53 will notice that with use of health checks set up earlier, and change value for the A record to point to S3 instead of EC2 as a backup option.  
+When EC2 fails for unknown reason, route53 will notice that with use of health checks set up earlier, and change value for the A record to point to S3 instead of EC2 as a backup option.
 
 You can see this in action on this gif:
 

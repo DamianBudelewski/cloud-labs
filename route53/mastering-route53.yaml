@@ -82,9 +82,9 @@ Resources:
         Type: A
         SetIdentifier: 2
         HealthCheckId: !GetAtt SimpleHealthCheck.HealthCheckId
-        Failover: PRIMARY 
-        TTL: 20 
-        ResourceRecords: 
+        Failover: PRIMARY
+        TTL: 20
+        ResourceRecords:
           - !GetAtt WebServerInstance.PublicIp
       -
         Name: !Ref RootDomainName
@@ -115,10 +115,10 @@ Resources:
         FailureThreshold: 2
 Outputs:
   EC2WebsiteURL:
-    Value: !Join 
+    Value: !Join
       - ''
       - - 'http://'
-        - !GetAtt 
+        - !GetAtt
           - WebServerInstance
           - PublicDnsName
   S3WebsiteURL:

@@ -49,7 +49,7 @@ locals {
         from_port   = 22
         to_port     = 22
         protocol    = "tcp"
-        cidr_block  = "0.0.0.0/0" 
+        cidr_block  = "0.0.0.0/0"
       },
       {
         rule_number = 120
@@ -75,7 +75,7 @@ locals {
         from_port   = 22
         to_port     = 22
         protocol    = "tcp"
-        cidr_block  = "0.0.0.0/0" 
+        cidr_block  = "0.0.0.0/0"
       },
       {
         rule_number = 120
@@ -83,7 +83,7 @@ locals {
         from_port   = 443
         to_port     = 443
         protocol    = "tcp"
-        cidr_block  = "0.0.0.0/0" 
+        cidr_block  = "0.0.0.0/0"
       }
     ]
     private_inbound = [
@@ -111,7 +111,7 @@ locals {
         from_port   = 443
         to_port     = 443
         protocol    = "tcp"
-        cidr_block  = "0.0.0.0/0" 
+        cidr_block  = "0.0.0.0/0"
       }
     ]
   }

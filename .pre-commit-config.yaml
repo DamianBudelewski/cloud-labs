@@ -1,0 +1,13 @@
+repos:
+  - repo: git://github.com/pre-commit/pre-commit-hooks
+    rev: v3.4.0
+    hooks:
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-yaml
+        exclude: route53/mastering-route53.yaml
+      - id: detect-private-key
+      - id: pretty-format-json
+        args:
+          - --autofix
+      - id: trailing-whitespace
