@@ -8,7 +8,7 @@
     "kms": [
       {
         "arn": "arn:aws:kms:eu-west-1:702707802422:key/042938cb-48ba-4f1c-a558-3c8225ac38e7",
-        "aws_profile": "",
+        "aws_profile": "personal",
         "created_at": "2021-07-13T22:01:36Z",
         "enc": "AQICAHgb66V4nc/E3MXw2Qh6/DuHoFqzUicGU3H0J1GoubfKkAGji4Zx8FEIpzGtfOJuBd49AAAAfjB8BgkqhkiG9w0BBwagbzBtAgEAMGgGCSqGSIb3DQEHATAeBglghkgBZQMEAS4wEQQMpdOEZZUcEc03Ru8KAgEQgDs+QPXr98fXdQI1ubbQbT0YSLejyV54v3jjcwRVmOfvGAURqNnOz5HRIwkKht9h88AKqBIQpJ6eAODz9w=="
       }

@@ -11,3 +11,9 @@ repos:
         args:
           - --autofix
       - id: trailing-whitespace
+  - repo: https://github.com/awslabs/cfn-python-lint
+    rev: v0.59.0 # The version of cfn-lint to use
+    hooks:
+    -   id: cfn-python-lint
+        files: route53/.*\.(json|yml|yaml)$
+        exclude: route53/parameters.enc.json

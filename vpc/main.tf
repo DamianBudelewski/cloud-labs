@@ -13,7 +13,7 @@ terraform {
   }
 
   backend "s3" {
-    bucket         = "terraform-state-bucket-mastering-aws-vpc" 
+    bucket         = "terraform-state-bucket-mastering-aws-vpc"
     key            = "vpc/terraform.tfstate"
     region         = "us-east-1"
     encrypt        = "true"
